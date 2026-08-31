@@ -5,6 +5,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -12,9 +13,11 @@ import java.util.List;
 
 public class AppendOnlyLog implements AutoCloseable {
 
+    private static final int INDEX_INTERVAL = 100;
     private final FileChannel fileChannel;
     private final RecordSerializable serializer;
 
+    private final List<IndexEntry> index = new ArrayList<>();
     private long nextOffset;
 
     public AppendOnlyLog(Path path) throws IOException {
@@ -28,7 +31,27 @@ public class AppendOnlyLog implements AutoCloseable {
 
         this.serializer = new RecordSerializable();
 
-        this.nextOffset = 0;
+        recover();
+    }
+
+    private void recover() throws IOException{
+        nextOffset = 0;
+        fileChannel.position(0);
+
+        while(fileChannel.position() < fileChannel.size()){
+            long recordPosition = fileChannel.position();
+            Record record = readRecord();
+
+            if(record.offset() % INDEX_INTERVAL == 0){
+                index.add(
+                        new IndexEntry(
+                                record.offset(),
+                                recordPosition
+                        )
+                );
+            }
+            nextOffset = record.offset() + 1;
+        }
     }
 
     public long append(String key, byte[] value)
@@ -43,9 +66,15 @@ public class AppendOnlyLog implements AutoCloseable {
         );
 
         byte[] data =
-                serializer.serializable(record);
+                serializer.serialize(record);
 
-        fileChannel.position(fileChannel.size());
+        long filePosition = fileChannel.size();
+
+        if(offset % INDEX_INTERVAL == 0){
+            index.add(new IndexEntry(offset,filePosition));
+        }
+
+        fileChannel.position(filePosition);
 
         ByteBuffer buffer =
                 ByteBuffer.wrap(data);
@@ -57,13 +86,28 @@ public class AppendOnlyLog implements AutoCloseable {
         return offset;
     }
 
+    private IndexEntry findIndexEntry(long offset){
+        IndexEntry result = null;
+        for(IndexEntry entry: index){
+            if(entry.offset() > offset){
+                break;
+            }
+            result = entry;
+        }
+        return result;
+    }
+
     public List<Record> read(long fromOffset)
             throws IOException {
 
         List<Record> records =
                 new ArrayList<>();
 
-        fileChannel.position(0);
+        IndexEntry entry = findIndexEntry(fromOffset);
+
+        long startPosition = entry == null ? 0 : entry.filePosition();
+
+        fileChannel.position(startPosition);
 
         while (fileChannel.position()
                 < fileChannel.size()) {
@@ -79,31 +123,63 @@ public class AppendOnlyLog implements AutoCloseable {
         return records;
     }
 
-    private Record readRecord()
-            throws IOException {
+    private Record readRecord() throws IOException {
 
-        long offset = readLong();
+        int recordLength = readInt();
 
-        int keyLength = readInt();
+        if (recordLength <= 0) {
+            throw new IOException(
+                    "Invalid record length: " + recordLength
+            );
+        }
+
+        ByteBuffer buffer =
+                ByteBuffer.allocate(recordLength);
+
+        readFully(buffer);
+
+        buffer.flip();
+
+        long offset = buffer.getLong();
+
+        int keyLength = buffer.getInt();
+
+        if (keyLength < 0 ||
+                keyLength > buffer.remaining()) {
+            throw new IOException(
+                    "Invalid key length: " + keyLength
+            );
+        }
 
         byte[] keyBytes =
-                readBytes(keyLength);
+                new byte[keyLength];
 
-        int valueLength = readInt();
+        buffer.get(keyBytes);
+
+        int valueLength =
+                buffer.getInt();
+
+        if (valueLength < 0 ||
+                valueLength > buffer.remaining()) {
+            throw new IOException(
+                    "Invalid value length: " + valueLength
+            );
+        }
 
         byte[] valueBytes =
-                readBytes(valueLength);
+                new byte[valueLength];
+
+        buffer.get(valueBytes);
 
         return new Record(
                 offset,
                 new String(
                         keyBytes,
-                        java.nio.charset.StandardCharsets.UTF_8
+                        StandardCharsets.UTF_8
                 ),
                 valueBytes
         );
     }
-
     private long readLong()
             throws IOException {
 
@@ -166,7 +242,6 @@ public class AppendOnlyLog implements AutoCloseable {
     @Override
     public void close()
             throws IOException {
-
         fileChannel.close();
     }
 }

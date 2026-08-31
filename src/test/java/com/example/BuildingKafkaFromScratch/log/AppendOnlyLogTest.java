@@ -91,4 +91,53 @@ class AppendOnlyLogTest {
         }
     }
 
+    @Test
+    void shouldRecoverOffsetAfterRestart() throws Exception {
+
+        Path path = Files.createTempFile(
+                "simple-kafka",
+                ".log"
+        );
+
+        try (AppendOnlyLog log =
+                     new AppendOnlyLog(path)) {
+
+            assertEquals(
+                    0,
+                    log.append(
+                            "key1",
+                            "A".getBytes(StandardCharsets.UTF_8)
+                    )
+            );
+
+            assertEquals(
+                    1,
+                    log.append(
+                            "key2",
+                            "B".getBytes(StandardCharsets.UTF_8)
+                    )
+            );
+
+            assertEquals(
+                    2,
+                    log.append(
+                            "key3",
+                            "C".getBytes(StandardCharsets.UTF_8)
+                    )
+            );
+        }
+
+        // Simulate broker restart
+        try (AppendOnlyLog log =
+                     new AppendOnlyLog(path)) {
+
+            assertEquals(
+                    3,
+                    log.append(
+                            "key4",
+                            "D".getBytes(StandardCharsets.UTF_8)
+                    )
+            );
+        }
+    }
 }
