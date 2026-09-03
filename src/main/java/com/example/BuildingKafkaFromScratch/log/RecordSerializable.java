@@ -1,6 +1,5 @@
 package com.example.BuildingKafkaFromScratch.log;
 
-import io.netty.buffer.ByteBuf;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -36,17 +35,32 @@ public class RecordSerializable {
         return buffer.array();
     }
 
-    public Record deserialize(byte[] data){
+    public Record deserialize(byte[] data) {
         ByteBuffer buffer = ByteBuffer.wrap(data);
+
+        int recordLength = buffer.getInt();
+
+        if (recordLength != buffer.remaining()) {
+            throw new IllegalArgumentException(
+                    "Invalid record length: " + recordLength
+            );
+        }
+
         long offset = buffer.getLong();
+
         int keyLength = buffer.getInt();
         byte[] keyBytes = new byte[keyLength];
         buffer.get(keyBytes);
-        String key = new String(keyBytes,StandardCharsets.UTF_8);
+
+        String key = new String(
+                keyBytes,
+                StandardCharsets.UTF_8
+        );
+
         int valueLength = buffer.getInt();
         byte[] value = new byte[valueLength];
         buffer.get(value);
 
-        return new Record(offset,key,value);
+        return new Record(offset, key, value);
     }
 }

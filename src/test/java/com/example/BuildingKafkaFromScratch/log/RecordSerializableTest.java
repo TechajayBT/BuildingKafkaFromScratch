@@ -14,7 +14,7 @@ class RecordSerializableTest {
 
         RecordSerializable serializer = new RecordSerializable();
 
-        byte[] data = serializer.serializable(original);
+        byte[] data = serializer.serialize(original);
 
         Record restored = serializer.deserialize(data);
 

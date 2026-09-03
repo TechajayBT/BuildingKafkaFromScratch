@@ -40,18 +40,19 @@ public class AppendOnlyLog implements AutoCloseable {
 
         while(fileChannel.position() < fileChannel.size()){
             long recordPosition = fileChannel.position();
-            Record record = readRecord();
-
-            if(record.offset() % INDEX_INTERVAL == 0){
-                index.add(
-                        new IndexEntry(
-                                record.offset(),
-                                recordPosition
-                        )
-                );
+            try {
+                Record record = readRecord();
+                if(record.offset()%INDEX_INTERVAL==0){
+                    index.add(new IndexEntry(record.offset(),recordPosition));
+                }
+                nextOffset = record.offset()+1;
             }
-            nextOffset = record.offset() + 1;
+            catch(IOException e){
+                fileChannel.truncate(recordPosition);
+                break;
+            }
         }
+        fileChannel.position(fileChannel.size());
     }
 
     public long append(String key, byte[] value)
@@ -131,6 +132,12 @@ public class AppendOnlyLog implements AutoCloseable {
             throw new IOException(
                     "Invalid record length: " + recordLength
             );
+        }
+
+        long remaining = fileChannel.size()-fileChannel.position();
+
+        if(recordLength>remaining){
+            throw new EOFException("Incomplete record");
         }
 
         ByteBuffer buffer =
