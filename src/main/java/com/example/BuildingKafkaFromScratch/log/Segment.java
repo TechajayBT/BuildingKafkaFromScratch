@@ -14,6 +14,7 @@ public class Segment implements AutoCloseable {
     private final long baseOffset;
     private final FileChannel fileChannel;
     private final RecordSerializable serializer;
+    private final SparseIndex index;
 
     private long nextOffset;
 
@@ -29,6 +30,7 @@ public class Segment implements AutoCloseable {
         );
 
         this.serializer = new RecordSerializable();
+        this.index = new SparseIndex();
 
         this.nextOffset = recoverNextOffset();
     }
@@ -49,6 +51,8 @@ public class Segment implements AutoCloseable {
 
         long offset = nextOffset;
 
+        long filePosition = fileChannel.size();
+
         Record record = new Record(
                 offset,
                 key,
@@ -57,12 +61,16 @@ public class Segment implements AutoCloseable {
 
         byte[] data = serializer.serialize(record);
 
-        fileChannel.position(fileChannel.size());
-
         ByteBuffer buffer = ByteBuffer.wrap(data);
+
+        fileChannel.position(filePosition);
 
         while (buffer.hasRemaining()) {
             fileChannel.write(buffer);
+        }
+
+        if (offset % 100 == 0) {
+            index.add(offset, filePosition);
         }
 
         nextOffset++;
@@ -90,12 +98,17 @@ public class Segment implements AutoCloseable {
 
                 Record record = readRecord();
 
+                if (record.offset() % 100 == 0) {
+                    index.add(
+                            record.offset(),
+                            recordPosition
+                    );
+                }
+
                 lastOffset = record.offset();
 
             } catch (EOFException e) {
 
-                // The final record was incomplete.
-                // Remove the incomplete bytes.
                 fileChannel.truncate(recordPosition);
 
                 break;
@@ -211,7 +224,12 @@ public class Segment implements AutoCloseable {
 
     public List<Record> read(long fromOffset) throws IOException{
         List<Record> records = new ArrayList<>();
-        fileChannel.position(0);
+        Long position = index.findPosition(fromOffset);
+        if (position == null) {
+            fileChannel.position(0);
+        } else {
+            fileChannel.position(position);
+        }
         while(fileChannel.position() < fileChannel.size()){
             Record record = readRecord();
             if(record.offset() >= fromOffset){

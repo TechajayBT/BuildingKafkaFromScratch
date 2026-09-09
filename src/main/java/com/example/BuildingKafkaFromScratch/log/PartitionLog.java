@@ -169,19 +169,31 @@ public class PartitionLog implements AutoCloseable {
 
     private Segment findSegment(long offset) {
 
+        int low = 0;
+        int high = segments.size() - 1;
+
         Segment result = null;
 
-        for (Segment segment : segments) {
+        while (low <= high) {
+
+            int mid = low + (high - low) / 2;
+
+            Segment segment = segments.get(mid);
 
             if (segment.baseOffset() <= offset) {
+
                 result = segment;
+                low = mid + 1;
+
             } else {
-                break;
+
+                high = mid - 1;
             }
         }
 
         return result;
     }
+
     @Override
     public void close() throws IOException {
 

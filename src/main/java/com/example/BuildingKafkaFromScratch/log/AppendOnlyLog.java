@@ -187,18 +187,6 @@ public class AppendOnlyLog implements AutoCloseable {
         );
     }
 
-    private long readLong()
-            throws IOException {
-
-        ByteBuffer buffer =
-                ByteBuffer.allocate(Long.BYTES);
-
-        readFully(buffer);
-
-        buffer.flip();
-
-        return buffer.getLong();
-    }
 
     private int readInt()
             throws IOException {
@@ -211,23 +199,6 @@ public class AppendOnlyLog implements AutoCloseable {
         buffer.flip();
 
         return buffer.getInt();
-    }
-
-    private byte[] readBytes(int length)
-            throws IOException {
-
-        if (length < 0) {
-            throw new IOException(
-                    "Invalid length: " + length
-            );
-        }
-
-        ByteBuffer buffer =
-                ByteBuffer.allocate(length);
-
-        readFully(buffer);
-
-        return buffer.array();
     }
 
     private void readFully(ByteBuffer buffer)

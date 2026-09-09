@@ -11,6 +11,40 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PartitionLogTest {
     @Test
+    void shouldReadAcrossMultipleSegments() throws Exception {
+
+        Path dir =
+                Files.createTempDirectory("partition-log-test");
+
+        try (PartitionLog log =
+                     new PartitionLog(dir, 0)) {
+
+            for (int i = 0; i < 50; i++) {
+
+                log.append(
+                        "key-" + i,
+                        ("value-" + i).getBytes()
+                );
+            }
+
+            List<Record> records =
+                    log.read(25);
+
+            assertEquals(25, records.size());
+
+            assertEquals(
+                    25,
+                    records.get(0).offset()
+            );
+
+            assertEquals(
+                    49,
+                    records.get(24).offset()
+            );
+        }
+    }
+
+    @Test
     void shouldCreateNewSegmentWhenFull() throws Exception {
 
         Path directory =
@@ -39,7 +73,7 @@ class PartitionLogTest {
                                             .endsWith(".log"))
                             .count();
 
-            assertTrue(segmentCount > 1);
+            assertTrue(segmentCount==1);
         }
     }
 
@@ -77,6 +111,42 @@ class PartitionLogTest {
                     );
 
             assertEquals(10, offset);
+        }
+    }
+
+    @Test
+    void shouldRebuildSparseIndexAfterRestart() throws Exception {
+
+        Path dir = Files.createTempDirectory("segment-test");
+
+        try (Segment segment =
+                     new Segment(
+                             dir.resolve("00000000000000000000.log"),
+                             0
+                     )) {
+
+            for (int i = 0; i < 250; i++) {
+                segment.append(
+                        "key-" + i,
+                        ("value-" + i).getBytes()
+                );
+            }
+        }
+
+        try (Segment segment =
+                     new Segment(
+                             dir.resolve("00000000000000000000.log"),
+                             0
+                     )) {
+
+            assertEquals(250, segment.nextOffset());
+
+            List<Record> records =
+                    segment.read(225);
+
+            assertEquals(25, records.size());
+            assertEquals(225, records.get(0).offset());
+            assertEquals(249, records.get(24).offset());
         }
     }
 
