@@ -40,6 +40,9 @@ public class Segment implements AutoCloseable {
     public long size() throws IOException{
         return fileChannel.size();
     }
+    public long nextOffset() {
+        return nextOffset;
+    }
 
     public long append(String key, byte[] value)
             throws IOException {
