@@ -1,6 +1,5 @@
 package com.example.BuildingKafkaFromScratch.log;
 
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 

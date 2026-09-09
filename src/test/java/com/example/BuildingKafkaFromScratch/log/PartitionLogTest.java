@@ -11,6 +11,76 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PartitionLogTest {
     @Test
+    void shouldCreateNewSegmentWhenFull() throws Exception {
+
+        Path directory =
+                Files.createTempDirectory("partition-0");
+
+        try (PartitionLog log =
+                     new PartitionLog(directory, 0)) {
+
+            for (int i = 0; i < 20; i++) {
+
+                log.append(
+                        "key-" + i,
+                        ("message-" + i)
+                                .getBytes(StandardCharsets.UTF_8)
+                );
+            }
+        }
+
+        try (var files = Files.list(directory)) {
+
+            long segmentCount =
+                    files
+                            .filter(path ->
+                                    path.getFileName()
+                                            .toString()
+                                            .endsWith(".log"))
+                            .count();
+
+            assertTrue(segmentCount > 1);
+        }
+    }
+
+    @Test
+    void shouldRecoverAfterRestart() throws Exception {
+
+        Path directory =
+                Files.createTempDirectory("partition-0");
+
+        try (PartitionLog log =
+                     new PartitionLog(directory, 0)) {
+
+            for (int i = 0; i < 10; i++) {
+
+                assertEquals(
+                        i,
+                        log.append(
+                                "key-" + i,
+                                ("message-" + i)
+                                        .getBytes(StandardCharsets.UTF_8)
+                        )
+                );
+            }
+        }
+
+        // Simulate restart
+        try (PartitionLog log =
+                     new PartitionLog(directory, 0)) {
+
+            long offset =
+                    log.append(
+                            "after-restart",
+                            "hello"
+                                    .getBytes(StandardCharsets.UTF_8)
+                    );
+
+            assertEquals(10, offset);
+        }
+    }
+
+    @Test
     void shouldAppendAndReadRecords()
             throws Exception {
 

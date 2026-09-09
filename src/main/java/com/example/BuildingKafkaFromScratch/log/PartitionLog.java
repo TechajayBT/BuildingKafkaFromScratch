@@ -10,7 +10,6 @@ import java.util.List;
 public class PartitionLog implements AutoCloseable {
 
     private static final long MAX_SEGMENT_SIZE = 10 * 1024 * 1024;
-
     private final int partitionId;
     private final Path directory;
 

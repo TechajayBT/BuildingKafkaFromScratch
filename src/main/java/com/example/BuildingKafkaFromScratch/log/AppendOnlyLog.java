@@ -1,6 +1,5 @@
 package com.example.BuildingKafkaFromScratch.log;
 
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -187,6 +186,7 @@ public class AppendOnlyLog implements AutoCloseable {
                 valueBytes
         );
     }
+
     private long readLong()
             throws IOException {
 
