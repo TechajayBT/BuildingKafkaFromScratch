@@ -41,7 +41,7 @@ public class TopicManager implements AutoCloseable{
 
     @Override
     public void close() throws IOException{
-        for(Topic topic : topics.value()){
+        for(Topic topic : topics.values()){
             topic.close();
         }
     }
