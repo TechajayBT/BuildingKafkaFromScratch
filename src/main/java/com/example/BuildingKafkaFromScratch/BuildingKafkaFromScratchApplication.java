@@ -11,7 +11,6 @@ import java.nio.file.Path;
 public class BuildingKafkaFromScratchApplication implements CommandLineRunner {
 
 	public static void main(String[] args) {
-
 		SpringApplication.run(
 				BuildingKafkaFromScratchApplication.class,
 				args
