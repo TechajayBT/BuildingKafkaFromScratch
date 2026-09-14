@@ -15,12 +15,25 @@ public class TopicManager implements AutoCloseable{
 
     public Topic createTopic(String name,
                              int partitionCount) throws IOException{
+        if(name == null || name.isBlank()){
+            throw new IllegalArgumentException(
+                    "Topic name cannot be empty"
+            );
+        }
+
+        if(partitionCount<=0){
+            throw new IllegalArgumentException(
+                    "Partition count must be greater than 0"
+            );
+        }
+
         if(topics.containsKey(name)){
             throw new IllegalArgumentException(
                     "Topic already exists: "+name
             );
         }
-        Topic topic = new Topic(name,
+        Topic topic = new Topic(
+                name,
                 partitionCount,
                 dataDirectory.resolve(name)
         );

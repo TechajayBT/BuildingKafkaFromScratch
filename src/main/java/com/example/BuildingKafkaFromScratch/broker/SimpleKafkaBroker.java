@@ -1,6 +1,5 @@
 package com.example.BuildingKafkaFromScratch.broker;
 
-
 import com.example.BuildingKafkaFromScratch.log.PartitionLog;
 import com.example.BuildingKafkaFromScratch.log.Record;
 import com.example.BuildingKafkaFromScratch.log.Topic;
@@ -22,11 +21,6 @@ public class SimpleKafkaBroker {
 
         this.topicManager =
                 new TopicManager(dataDirectory);
-
-        topicManager.createTopic(
-                "orders",
-                3
-        );
     }
 
     public void start(int port)
@@ -111,6 +105,9 @@ public class SimpleKafkaBroker {
         }
 
         return switch (parts[0].toUpperCase()) {
+
+            case "CREATE_TOPIC" ->
+                    handleCreateTopic(parts);
 
             case "PRODUCE" ->
                     handleProduce(parts);
@@ -198,5 +195,41 @@ public class SimpleKafkaBroker {
         }
 
         return response.toString();
+    }
+
+    private String handleCreateTopic(
+            String[] parts
+    ) throws IOException {
+
+        if (parts.length < 3) {
+            return "ERROR usage: CREATE_TOPIC topic partitionCount";
+        }
+
+        String topicName = parts[1];
+
+        int partitionCount;
+
+        try {
+            partitionCount =
+                    Integer.parseInt(parts[2]);
+
+        } catch (NumberFormatException e) {
+
+            return "ERROR invalid partition count";
+        }
+
+        try {
+
+            topicManager.createTopic(
+                    topicName,
+                    partitionCount
+            );
+
+            return "OK";
+
+        } catch (IllegalArgumentException e) {
+
+            return "ERROR " + e.getMessage();
+        }
     }
 }
