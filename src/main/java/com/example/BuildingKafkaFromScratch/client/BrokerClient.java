@@ -50,54 +50,9 @@ public class BrokerClient implements AutoCloseable{
 
         try (BrokerClient client =
                      new BrokerClient("localhost", 9092)) {
-
-            System.out.println(
-                    client.send(
-                            "CREATE_TOPIC payments 2"
-                    )
-            );
-
-            System.out.println(
-                    client.send(
-                            "PRODUCE payments 0 payment1 500"
-                    )
-            );
-
-            System.out.println(
-                    client.send(
-                            "CREATE_TOPIC orders 3"
-                    )
-            );
-
-            System.out.println(
-                    client.send(
-                            "CREATE_TOPIC orders 3"
-                    )
-            );
-
-            System.out.println(
-                    client.send(
-                            "CREATE_TOPIC payments 0"
-                    )
-            );
-
-            System.out.println(
-                    client.send(
-                            "CREATE_TOPIC payments -1"
-                    )
-            );
-
-            System.out.println(
-                    client.send(
-                            "CREATE_TOPIC payments abc"
-                    )
-            );
-
-            System.out.println(
-                    client.send(
-                            "FETCH payments 0 0"
-                    )
-            );
+           System.out.println(client.send(
+                   "FETCH orders 0 0"
+           ));
         }
     }
 }

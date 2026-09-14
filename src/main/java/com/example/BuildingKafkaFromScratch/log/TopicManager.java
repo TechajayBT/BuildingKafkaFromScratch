@@ -1,6 +1,7 @@
 package com.example.BuildingKafkaFromScratch.log;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,8 +10,11 @@ public class TopicManager implements AutoCloseable{
     private final Path dataDirectory;
     private final Map<String,Topic> topics = new ConcurrentHashMap<>();
 
-    public TopicManager(Path dataDirectory){
+    public TopicManager(Path dataDirectory) throws IOException{
         this.dataDirectory = dataDirectory;
+        Files.createDirectories(dataDirectory);
+
+        loadTopics();
     }
 
     public Topic createTopic(String name,
@@ -50,6 +54,58 @@ public class TopicManager implements AutoCloseable{
             );
         }
         return topic;
+    }
+
+    private void loadTopics() throws IOException{
+        try(var paths = Files.list(dataDirectory)){
+            for(Path topicDirectory : paths
+                    .filter(Files::isDirectory)
+                    .toList()){
+                String topicName =
+                        topicDirectory
+                                .getFileName().toString();
+
+                int partitionCount = discoverPartitionCount(topicDirectory);
+
+                if(partitionCount <= 0){
+                    continue;
+                }
+
+                Topic topic =
+                        new Topic(
+                                topicName,
+                                partitionCount,
+                                topicDirectory
+                        );
+
+                topics.put(topicName,topic);
+            }
+        }
+    }
+
+    private int discoverPartitionCount(Path topicDirectory)
+            throws IOException{
+        int maxPartitionId = -1;
+        try(var paths = Files.list(topicDirectory)){
+            for(Path path : paths
+                    .filter(Files::isDirectory)
+                    .toList()){
+                String name = path.getFileName().toString();
+                if(!name.startsWith("partition-")){
+                    continue;
+                }
+                String id = name.substring("partition-".length());
+                int partitionId;
+                try{
+                    partitionId = Integer.parseInt(id);
+                } catch(NumberFormatException e){
+                    continue;
+                }
+
+                maxPartitionId = Math.max(maxPartitionId,partitionId);
+            }
+        }
+        return maxPartitionId + 1;
     }
 
     @Override
